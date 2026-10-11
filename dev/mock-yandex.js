@@ -4,6 +4,8 @@
 //   node dev/mock-yandex.js
 //   YANDEX_API_BASE=http://127.0.0.1:4000/v1/disk YANDEX_OAUTH_BASE=http://127.0.0.1:4000 node dev/local.js
 // Токен для ручного входа: test-token
+// MOCK_EMPTY_FLAT=1 — плоский список файлов пуст (как при задержке индекса Яндекса),
+// приложение должно найти файлы обходом папок.
 //
 // Серверы скачивания:
 //   127.0.0.1:4001 — downloader, редиректит на хранилища
@@ -46,8 +48,19 @@ http.createServer((req, res) => {
   if (url.pathname === '/v1/disk/resources/files') {
     const limit = Number(url.searchParams.get('limit')) || 20;
     const offset = Number(url.searchParams.get('offset')) || 0;
-    const items = FILES.slice(offset, offset + limit).map(({ storage, ...f }) => f);
+    const all = process.env.MOCK_EMPTY_FLAT ? [] : FILES;
+    const items = all.slice(offset, offset + limit).map(({ storage, ...f }) => f);
     return json(res, 200, { items, limit, offset });
+  }
+  if (url.pathname === '/v1/disk/resources') {
+    const limit = Number(url.searchParams.get('limit')) || 20;
+    const offset = Number(url.searchParams.get('offset')) || 0;
+    const dir = url.searchParams.get('path');
+    const all = dir === 'disk:/'
+      ? [{ type: 'dir', name: 'Фото', path: 'disk:/Фото' }]
+      : dir === 'disk:/Фото' ? FILES.map(({ storage, ...f }) => ({ type: 'file', ...f })) : null;
+    if (!all) return json(res, 404, { message: 'Не удалось найти запрошенный ресурс.' });
+    return json(res, 200, { _embedded: { items: all.slice(offset, offset + limit), total: all.length } });
   }
   if (url.pathname === '/v1/disk/resources/download') {
     const f = FILES.find((x) => x.path === url.searchParams.get('path'));

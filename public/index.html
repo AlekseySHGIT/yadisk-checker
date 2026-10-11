@@ -185,6 +185,16 @@
       </div>
     </div>
 
+    <div id="emptyBox" class="card hidden">
+      <h2>Файлов не найдено</h2>
+      <p class="small" style="margin:0 0 8px">Яндекс Диск вернул пустой список. Возможные причины:</p>
+      <ul class="small muted" style="margin:0;padding-left:20px">
+        <li>У приложения на oauth.yandex.ru нет права «Чтение всего Диска» (<code>cloud_api:disk.read</code>). После добавления права выйдите и войдите снова.</li>
+        <li>Файлы лежат в Корзине: она не проверяется.</li>
+        <li>На Диске действительно нет файлов.</li>
+      </ul>
+    </div>
+
     <div id="results" class="hidden">
       <div class="card">
         <h2>Доступность файлов</h2>
@@ -361,6 +371,25 @@ async function runScan(limit) {
       scheduleRender();
       if (page.items.length < n) break;
     }
+    // Плоский список пуст: обходим папки (индекс Яндекса мог ещё не обновиться).
+    if (eng.files.length === 0) {
+      eng.stage = 'walking';
+      scheduleRender();
+      const queue = ['disk:/'];
+      while (queue.length && eng.files.length < limit) {
+        const dir = queue.shift();
+        for (let offset = 0; eng.files.length < limit; offset += LIST_PAGE) {
+          const page = await api(`/api/dir?path=${encodeURIComponent(dir)}&limit=${LIST_PAGE}&offset=${offset}`);
+          alive();
+          for (const it of page.items) {
+            if (it.type === 'dir') queue.push(it.path);
+            else if (eng.files.length < limit) eng.files.push({ ...it, status: 'pending', host: null, reason: null });
+          }
+          scheduleRender();
+          if (page.items.length < LIST_PAGE) break;
+        }
+      }
+    }
     eng.stage = 'checking';
     let next = 0;
     const worker = async () => {
@@ -446,15 +475,17 @@ function applyScan(scan) {
 
   const done = scan.total - scan.counts.pending;
   const pct = scan.total ? Math.round(done / scan.total * 100) : 0;
-  $('progressBar').style.width = (scan.stage === 'listing' ? 5 : scan.running ? pct : 100) + '%';
+  $('progressBar').style.width = (scan.stage === 'listing' || scan.stage === 'walking' ? 5 : scan.running ? pct : 100) + '%';
   $('progressText').textContent =
     scan.stage === 'listing' ? `Получаю список файлов… найдено ${fmtNum(scan.total)}` :
+    scan.stage === 'walking' ? `Обхожу папки… найдено ${fmtNum(scan.total)}` :
     scan.running ? `Проверено ${fmtNum(done)} из ${fmtNum(scan.total)}` :
     `Готово: ${fmtNum(scan.total)} файлов за ${Math.max(1, Math.round((scan.finishedAt - scan.startedAt) / 1000))} с`;
 
   if (scan.error) showFlash(scan.error);
 
   $('results').classList.toggle('hidden', scan.total === 0 && !scan.running);
+  $('emptyBox').classList.toggle('hidden', scan.running || scan.total > 0 || !!scan.error);
   renderChart(scan);
   renderServers(scan);
   renderFiles();
