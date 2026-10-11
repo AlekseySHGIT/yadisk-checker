@@ -1,6 +1,7 @@
 'use strict';
 const {
-  CLIENT_ID, CLIENT_SECRET, OAUTH_BASE, getQuery, redirect, parseCookies, setCookie, setToken, describeError, handler,
+  CLIENT_ID, CLIENT_SECRET, OAUTH_BASE, getQuery, redirect, parseCookies, setCookie, setToken, describeError,
+  fetchWithRetry, RATE_LIMIT_MESSAGE, handler,
 } = require('../lib/common');
 
 // Яндекс возвращает сюда code, меняем его на токен и кладём токен в cookie.
@@ -14,7 +15,7 @@ module.exports = handler(async (req, res) => {
   if (!q.get('code') || !state || q.get('state') !== state) return fail('Неверный ответ OAuth, попробуйте ещё раз');
 
   try {
-    const tokenRes = await fetch(`${OAUTH_BASE()}/token`, {
+    const tokenRes = await fetchWithRetry(`${OAUTH_BASE()}/token`, () => ({
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -24,7 +25,8 @@ module.exports = handler(async (req, res) => {
         client_secret: CLIENT_SECRET(),
       }),
       signal: AbortSignal.timeout(15000),
-    });
+    }));
+    if (tokenRes.status === 429) return fail(RATE_LIMIT_MESSAGE);
     const body = await tokenRes.json().catch(() => ({}));
     if (!tokenRes.ok || !body.access_token) throw new Error(body.error_description || body.error || `HTTP ${tokenRes.status}`);
     setToken(req, res, body.access_token, Number(body.expires_in) || undefined);

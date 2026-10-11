@@ -6,6 +6,7 @@
 // Токен для ручного входа: test-token
 // MOCK_EMPTY_FLAT=1 — плоский список файлов пуст (как при задержке индекса Яндекса),
 // приложение должно найти файлы обходом папок.
+// MOCK_TOKEN_429=N — первые N запросов токена получают 429 (лимит запросов Яндекса).
 //
 // Серверы скачивания:
 //   127.0.0.1:4001 — downloader, редиректит на хранилища
@@ -17,6 +18,7 @@
 const http = require('http');
 
 const TOKEN = 'test-token';
+let tokenRequests = 0;
 const STORAGES = [4002, 4003, 4004, 4005];
 const FILES = Array.from({ length: 24 }, (_, i) => ({
   name: `photo_${String(i + 1).padStart(2, '0')}.jpg`,
@@ -34,7 +36,12 @@ function json(res, status, body) {
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  if (url.pathname === '/token' && req.method === 'POST') return json(res, 200, { access_token: TOKEN });
+  if (url.pathname === '/token' && req.method === 'POST') {
+    if (tokenRequests++ < Number(process.env.MOCK_TOKEN_429 || 0)) {
+      return json(res, 429, { error: 'bad_response', error_description: 'bad response status code 429' });
+    }
+    return json(res, 200, { access_token: TOKEN });
+  }
   if (url.pathname === '/authorize') {
     const q = url.searchParams;
     res.writeHead(302, { Location: `${q.get('redirect_uri')}?code=abc&state=${q.get('state')}` });
