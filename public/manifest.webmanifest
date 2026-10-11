@@ -1,0 +1,9 @@
+{
+  "name": "Файлы Яндекс Диска",
+  "short_name": "Диск: файлы",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9f9f7",
+  "theme_color": "#f9f9f7",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

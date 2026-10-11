@@ -1,0 +1,12 @@
+{
+  "name": "yadisk-checker",
+  "version": "2.0.0",
+  "description": "Проверка, какие файлы Яндекс Диска доступны для скачивания",
+  "private": true,
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node dev/local.js",
+    "mock": "node dev/mock-yandex.js",
+    "demo": "YANDEX_API_BASE=http://127.0.0.1:4000/v1/disk YANDEX_OAUTH_BASE=http://127.0.0.1:4000 YANDEX_CLIENT_ID=demo CHECK_TIMEOUT_MS=2000 node dev/local.js"
+  }
+}

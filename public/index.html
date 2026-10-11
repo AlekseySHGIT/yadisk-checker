@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Диск: файлы">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>Файлы Диска</title>
+<style>
+  :root {
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --line: #e4e3df;
+    --accent: #2f6fe4;
+    --accent-ink: #ffffff;
+    --good: #0ca30c;
+    --critical: #d03b3b;
+    --serious: #ec835a;
+    --warning: #fab219;
+    --pending: #b9b7b0;
+    --radius: 14px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #898781;
+      --line: #2c2c2a;
+      --accent: #5b8ff0;
+      --pending: #55544f;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+    padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left)) 32px max(16px, env(safe-area-inset-right)); }
+  h1 { font-size: 24px; margin: 8px 0 16px; letter-spacing: -0.01em; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .grow { flex: 1 1 auto; min-width: 0; }
+  button, .btn {
+    -webkit-appearance: none; appearance: none;
+    font: inherit; font-weight: 600;
+    border: 0; border-radius: 12px;
+    padding: 12px 16px; min-height: 44px;
+    background: var(--accent); color: var(--accent-ink);
+    text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+  button:disabled { opacity: .5; cursor: default; }
+  .wide { width: 100%; }
+  input, select {
+    font: inherit; font-size: 16px; /* 16px — чтобы iOS не зумил поле */
+    width: 100%; min-height: 44px; padding: 10px 12px;
+    border-radius: 12px; border: 1px solid var(--line);
+    background: var(--page); color: var(--ink);
+  }
+  select { width: auto; }
+  details summary { cursor: pointer; color: var(--accent); min-height: 44px; display: flex; align-items: center; }
+  .error { color: var(--critical); font-weight: 600; }
+  .hidden { display: none !important; }
+
+  .progress { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; margin-top: 12px; }
+  .progress > div { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .3s; }
+
+  /* Диаграмма */
+  .chart-wrap { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; }
+  .chart { position: relative; width: 200px; height: 200px; flex: 0 0 auto; }
+  .chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .chart path { cursor: pointer; transition: opacity .15s; }
+  .chart.has-hover path:not(.hover) { opacity: .35; }
+  .chart-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+  .chart-center b { font-size: 32px; line-height: 1; }
+  .tooltip {
+    position: absolute; pointer-events: none; z-index: 2;
+    background: var(--ink); color: var(--page);
+    font-size: 13px; padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+    transform: translate(-50%, calc(-100% - 10px));
+  }
+  .legend { list-style: none; margin: 0; padding: 0; flex: 1 1 220px; }
+  .legend li { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-radius: 8px; cursor: pointer; min-height: 40px; }
+  .legend li.active { background: var(--page); }
+  .legend .val { margin-left: auto; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .legend .pct { color: var(--muted); font-size: 13px; width: 44px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .icon {
+    width: 22px; height: 22px; border-radius: 50%; flex: 0 0 auto;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; line-height: 1; color: #fff;
+  }
+  .s-ok .icon, .icon.s-ok { background: var(--good); }
+  .s-server_down .icon, .icon.s-server_down { background: var(--critical); }
+  .s-skipped .icon, .icon.s-skipped { background: var(--serious); }
+  .s-error .icon, .icon.s-error { background: var(--warning); color: #0b0b0b; }
+  .s-pending .icon, .icon.s-pending { background: var(--pending); }
+
+  /* Серверы */
+  .server { padding: 12px 0; border-top: 1px solid var(--line); }
+  .server:first-of-type { border-top: 0; padding-top: 0; }
+  .server code { font-size: 14px; overflow-wrap: anywhere; }
+
+  /* Фильтры и список файлов */
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 8px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; min-height: 36px; padding: 6px 14px; border-radius: 18px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); font-weight: 500; }
+  .chip.on { background: var(--ink); color: var(--page); border-color: var(--ink); }
+  .file { display: flex; gap: 10px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line); }
+  .file:first-child { border-top: 0; }
+  .file .name { font-weight: 600; word-break: break-word; }
+  .file .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .file .reason { font-size: 13px; color: var(--ink-2); }
+  .file a.dl { flex: 0 0 auto; min-height: 36px; padding: 6px 12px; font-size: 14px; border-radius: 10px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Файлы на Яндекс Диске</h1>
+
+  <div id="flash" class="card error hidden"></div>
+
+  <!-- Вход -->
+  <section id="login" class="card hidden">
+    <h2>Вход</h2>
+    <p class="muted small">Приложению нужен доступ на чтение Диска (право <code>cloud_api:disk.read</code>).</p>
+    <a id="oauthBtn" class="btn wide" href="/api/login">Войти через Яндекс</a>
+    <p id="oauthMissing" class="muted small hidden">Вход через Яндекс не настроен: укажите <code>YANDEX_CLIENT_ID</code> и <code>YANDEX_CLIENT_SECRET</code> в файле <code>.env</code>. Пока можно вставить токен вручную.</p>
+    <details id="manual">
+      <summary>Вставить OAuth-токен вручную</summary>
+      <p id="tokenHint" class="muted small"></p>
+      <form id="tokenForm" class="row">
+        <input id="tokenInput" class="grow" type="password" autocomplete="off" placeholder="y0_AgAAAA…">
+        <button type="submit">Сохранить</button>
+      </form>
+    </details>
+  </section>
+
+  <!-- Основной экран -->
+  <section id="app" class="hidden">
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div id="userName"><b>…</b></div>
+          <div id="space" class="muted small"></div>
+        </div>
+        <button id="logoutBtn" class="secondary">Выйти</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label class="grow small muted" for="limit">Сколько файлов проверить</label>
+        <select id="limit">
+          <option value="50">50</option>
+          <option value="200" selected>200</option>
+          <option value="1000">1 000</option>
+          <option value="10000">все (до 10 000)</option>
+        </select>
+      </div>
+      <button id="scanBtn" class="wide" style="margin-top:12px">Проверить файлы</button>
+      <div id="progressBox" class="hidden">
+        <div class="progress"><div id="progressBar"></div></div>
+        <div id="progressText" class="muted small" style="margin-top:6px"></div>
+      </div>
+    </div>
+
+    <div id="results" class="hidden">
+      <div class="card">
+        <h2>Доступность файлов</h2>
+        <div class="chart-wrap">
+          <div class="chart" id="chart">
+            <svg viewBox="-100 -100 200 200" role="img" aria-labelledby="chartTitle"><title id="chartTitle">Доля файлов по статусу</title><g id="slices"></g></svg>
+            <div class="chart-center"><b id="totalNum">0</b><span class="muted small">файлов</span></div>
+            <div id="tooltip" class="tooltip hidden"></div>
+          </div>
+          <ul class="legend" id="legend"></ul>
+        </div>
+      </div>
+
+      <div class="card" id="serversCard">
+        <h2>Недоступные серверы</h2>
+        <div id="servers"></div>
+      </div>
+
+      <div class="card">
+        <h2>Файлы</h2>
+        <div class="chips" id="chips"></div>
+        <div id="files"></div>
+        <button id="moreBtn" class="secondary wide hidden" style="margin-top:8px">Показать ещё</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+const STATUSES = [
+  { key: 'ok',          label: 'Доступны',                 short: 'Доступен',          icon: '✓', color: 'var(--good)' },
+  { key: 'server_down', label: 'Сервер не ответил',        short: 'Сервер не ответил', icon: '✕', color: 'var(--critical)' },
+  { key: 'skipped',     label: 'Тот же сервер — пропущены', short: 'Не может быть скачан', icon: '⊘', color: 'var(--serious)' },
+  { key: 'error',       label: 'Ошибка файла',             short: 'Ошибка',            icon: '!', color: 'var(--warning)' },
+  { key: 'pending',     label: 'Ещё проверяются',          short: 'Проверяется',       icon: '…', color: 'var(--pending)' },
+];
+const BY_KEY = Object.fromEntries(STATUSES.map(s => [s.key, s]));
+const FILTERS = [
+  { key: 'all', label: 'Все' },
+  { key: 'ok', label: 'Доступны' },
+  { key: 'bad', label: 'Недоступны' },
+  { key: 'error', label: 'Ошибки' },
+];
+const PAGE = 100;
+
+const $ = (id) => document.getElementById(id);
+let state = { scan: null, filter: 'all', shown: PAGE, legendKey: null };
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function fmtSize(b) {
+  if (b == null) return '';
+  const u = ['Б', 'КБ', 'МБ', 'ГБ', 'ТБ'];
+  let i = 0;
+  while (b >= 1024 && i < u.length - 1) { b /= 1024; i++; }
+  return (i ? b.toFixed(b < 10 ? 1 : 0) : b) + ' ' + u[i];
+}
+function fmtNum(n) { return n.toLocaleString('ru-RU'); }
+function showFlash(msg) {
+  const el = $('flash');
+  el.textContent = msg || '';
+  el.classList.toggle('hidden', !msg);
+}
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    credentials: 'same-origin',
+    headers: opts.body ? { 'Content-Type': 'application/json' } : {},
+    ...opts,
+    body: opts.body ? JSON.stringify(opts.body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+// ---------- вход ----------
+
+async function loadMe() {
+  const me = await api('/api/me');
+  $('login').classList.toggle('hidden', me.authorized);
+  $('app').classList.toggle('hidden', !me.authorized);
+  if (!me.authorized) {
+    $('oauthBtn').classList.toggle('hidden', !me.oauthConfigured);
+    $('oauthMissing').classList.toggle('hidden', me.oauthConfigured);
+    if (!me.oauthConfigured) $('manual').open = true;
+    $('tokenHint').innerHTML = me.clientId
+      ? `Получить токен: <a href="https://oauth.yandex.ru/authorize?response_type=token&client_id=${encodeURIComponent(me.clientId)}" target="_blank" rel="noopener">oauth.yandex.ru</a>, затем скопируйте его сюда.`
+      : 'Токен можно получить на oauth.yandex.ru для своего приложения с правом cloud_api:disk.read.';
+    if (me.error) showFlash(me.error);
+    return;
+  }
+  $('userName').innerHTML = `<b>${esc(me.user ? (me.user.name || me.user.login) : 'Яндекс Диск')}</b>`;
+  $('space').textContent = me.totalSpace ? `Занято ${fmtSize(me.usedSpace)} из ${fmtSize(me.totalSpace)}` : '';
+  if (me.error) showFlash(me.error);
+}
+
+$('tokenForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  try {
+    await api('/api/token', { method: 'POST', body: { token: $('tokenInput').value } });
+    $('tokenInput').value = '';
+    showFlash('');
+    await loadMe();
+  } catch (err) { showFlash(err.message); }
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  scanRun++; // останавливаем текущую проверку
+  eng = null;
+  await api('/api/logout', { method: 'POST' });
+  state.scan = null;
+  $('results').classList.add('hidden');
+  $('progressBox').classList.add('hidden');
+  loadMe();
+});
+
+// ---------- проверка ----------
+// На Vercel нет постоянно работающего сервера, поэтому проверкой управляет страница:
+// по одному запросу /api/check на файл, несколько файлов параллельно.
+
+const CONCURRENCY = 3;
+const LIST_PAGE = 100;
+let scanRun = 0;     // номер текущей проверки; при новой проверке или выходе старая останавливается
+let renderTimer = null;
+
+class StopScan extends Error {}
+
+function scheduleRender() {
+  if (renderTimer) return;
+  renderTimer = setTimeout(() => { renderTimer = null; if (eng) applyScan(scanView(eng)); }, 200);
+}
+
+let eng = null; // состояние проверки
+
+function scanView(e) {
+  const counts = { ok: 0, server_down: 0, skipped: 0, error: 0, pending: 0 };
+  for (const f of e.files) {
+    if (f.status === 'checking' || f.status === 'pending') counts.pending++;
+    else counts[f.status]++;
+  }
+  return {
+    running: e.running, stage: e.stage, startedAt: e.startedAt, finishedAt: e.finishedAt,
+    error: e.error, total: e.files.length, counts, files: e.files,
+    failedServers: [...e.failed.values()],
+  };
+}
+
+async function runScan(limit) {
+  const run = ++scanRun;
+  const alive = () => { if (run !== scanRun) throw new StopScan(); };
+  eng = {
+    running: true, stage: 'listing', startedAt: Date.now(), finishedAt: null, error: null,
+    files: [],
+    failed: new Map(),     // host -> { host, reason, firstFile, files: [] }
+    good: new Set(),       // хосты, которые уже отвечали
+    firstProbes: new Map() // host -> Promise первой проверки нового хоста
+  };
+  applyScan(scanView(eng));
+  try {
+    for (let offset = 0; offset < limit; offset += LIST_PAGE) {
+      const n = Math.min(LIST_PAGE, limit - offset);
+      const page = await api(`/api/files?limit=${n}&offset=${offset}`);
+      alive();
+      for (const it of page.items) eng.files.push({ ...it, status: 'pending', host: null, reason: null });
+      scheduleRender();
+      if (page.items.length < n) break;
+    }
+    eng.stage = 'checking';
+    let next = 0;
+    const worker = async () => {
+      while (next < eng.files.length) {
+        const file = eng.files[next++];
+        await checkFile(file, alive);
+        scheduleRender();
+      }
+    };
+    await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  } catch (err) {
+    if (err instanceof StopScan) return;
+    eng.error = err.message;
+    if (err.status === 401) loadMe();
+  }
+  eng.running = false;
+  eng.stage = 'done';
+  eng.finishedAt = Date.now();
+  applyScan(scanView(eng));
+}
+
+async function checkFile(file, alive) {
+  file.status = 'checking';
+  let allow = null;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    let r;
+    try {
+      r = await api('/api/check', { method: 'POST', body: {
+        path: file.path,
+        failedHosts: [...eng.failed.keys()],
+        goodHosts: [...eng.good],
+        allowHost: allow,
+      } });
+    } catch (err) {
+      if (err.status === 401) throw err;
+      r = { status: 'error', host: null, reason: err.message, passed: [] };
+    } finally {
+      // первая проверка хоста закончилась — отпускаем файлы, которые её ждали
+      if (allow) { const p = eng.firstProbes.get(allow); eng.firstProbes.delete(allow); p && p.release(); }
+    }
+    alive();
+    for (const h of r.passed || []) eng.good.add(h);
+
+    if (r.status === 'need_probe') {
+      const host = r.host;
+      allow = null;
+      if (eng.firstProbes.has(host)) { await eng.firstProbes.get(host).promise; continue; }
+      if (eng.failed.has(host) || eng.good.has(host)) continue;
+      let release;
+      const promise = new Promise(res => { release = res; });
+      eng.firstProbes.set(host, { promise, release });
+      allow = host;
+      continue;
+    }
+
+    file.status = r.status;
+    file.host = r.host;
+    file.reason = r.reason || null;
+    if (r.status === 'server_down') {
+      let s = eng.failed.get(r.host);
+      if (!s) { s = { host: r.host, reason: r.reason, firstFile: file.path, files: [] }; eng.failed.set(r.host, s); }
+      s.files.push(file.path);
+    } else if (r.status === 'skipped') {
+      eng.failed.get(r.host)?.files.push(file.path);
+    }
+    return;
+  }
+  file.status = 'error';
+  file.reason = 'Не удалось проверить: слишком много повторов';
+}
+
+$('scanBtn').addEventListener('click', () => {
+  showFlash('');
+  state.shown = PAGE;
+  runScan(Number($('limit').value));
+});
+
+function applyScan(scan) {
+  state.scan = scan;
+  $('scanBtn').disabled = scan.running;
+  $('scanBtn').textContent = scan.running ? 'Проверка…' : 'Проверить снова';
+  $('progressBox').classList.remove('hidden');
+
+  const done = scan.total - scan.counts.pending;
+  const pct = scan.total ? Math.round(done / scan.total * 100) : 0;
+  $('progressBar').style.width = (scan.stage === 'listing' ? 5 : scan.running ? pct : 100) + '%';
+  $('progressText').textContent =
+    scan.stage === 'listing' ? `Получаю список файлов… найдено ${fmtNum(scan.total)}` :
+    scan.running ? `Проверено ${fmtNum(done)} из ${fmtNum(scan.total)}` :
+    `Готово: ${fmtNum(scan.total)} файлов за ${Math.max(1, Math.round((scan.finishedAt - scan.startedAt) / 1000))} с`;
+
+  if (scan.error) showFlash(scan.error);
+
+  $('results').classList.toggle('hidden', scan.total === 0 && !scan.running);
+  renderChart(scan);
+  renderServers(scan);
+  renderFiles();
+}
+
+// ---------- круговая диаграмма ----------
+
+function arcPath(r0, r1, a0, a1) {
+  const p = (r, a) => `${(r * Math.sin(a)).toFixed(3)} ${(-r * Math.cos(a)).toFixed(3)}`;
+  if (a1 - a0 >= Math.PI * 2 - 1e-6) {
+    // полный круг рисуем двумя половинами
+    return `M ${p(r1, 0)} A ${r1} ${r1} 0 1 1 ${p(r1, Math.PI)} A ${r1} ${r1} 0 1 1 ${p(r1, 0)} Z ` +
+           `M ${p(r0, 0)} A ${r0} ${r0} 0 1 0 ${p(r0, Math.PI)} A ${r0} ${r0} 0 1 0 ${p(r0, 0)} Z`;
+  }
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  return `M ${p(r1, a0)} A ${r1} ${r1} 0 ${large} 1 ${p(r1, a1)} L ${p(r0, a1)} A ${r0} ${r0} 0 ${large} 0 ${p(r0, a0)} Z`;
+}
+
+function renderChart(scan) {
+  const total = scan.total;
+  $('totalNum').textContent = fmtNum(total);
+  const g = $('slices');
+  let html = '';
+  let a = 0;
+  const parts = STATUSES.map(s => ({ ...s, value: scan.counts[s.key] || 0 })).filter(s => s.value > 0);
+  for (const s of parts) {
+    const da = s.value / total * Math.PI * 2;
+    html += `<path d="${arcPath(62, 96, a, a + da)}" fill="${s.color}" fill-rule="evenodd"
+      stroke="var(--surface)" stroke-width="2" stroke-linejoin="round" data-key="${s.key}"></path>`;
+    a += da;
+  }
+  g.innerHTML = html;
+
+  $('legend').innerHTML = STATUSES.map(s => {
+    const v = scan.counts[s.key] || 0;
+    if (!v && (s.key === 'pending' || s.key === 'error')) return '';
+    const pct = total ? Math.round(v / total * 100) : 0;
+    return `<li class="s-${s.key}" data-key="${s.key}">
+      <span class="icon">${s.icon}</span><span>${s.label}</span>
+      <span class="val">${fmtNum(v)}</span><span class="pct">${pct}%</span></li>`;
+  }).join('');
+  highlight(state.legendKey);
+}
+
+function highlight(key, evt) {
+  state.legendKey = key;
+  const chart = $('chart');
+  chart.classList.toggle('has-hover', !!key);
+  chart.querySelectorAll('path').forEach(p => p.classList.toggle('hover', p.dataset.key === key));
+  $('legend').querySelectorAll('li').forEach(li => li.classList.toggle('active', li.dataset.key === key));
+  const tip = $('tooltip');
+  // Подсказка только для мыши: на iPhone значения и так видны в легенде.
+  if (!key || !state.scan || !evt || evt.pointerType !== 'mouse') { tip.classList.add('hidden'); return; }
+  const v = state.scan.counts[key] || 0;
+  const pct = state.scan.total ? Math.round(v / state.scan.total * 100) : 0;
+  tip.textContent = `${BY_KEY[key].label}: ${fmtNum(v)} (${pct}%)`;
+  const box = chart.getBoundingClientRect();
+  tip.style.left = (evt.clientX - box.left) + 'px';
+  tip.style.top = (evt.clientY - box.top) + 'px';
+  tip.classList.remove('hidden');
+}
+
+$('slices').addEventListener('pointermove', e => {
+  const key = e.target.dataset && e.target.dataset.key;
+  if (key) highlight(key, e);
+});
+$('slices').addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') highlight(null); });
+$('slices').addEventListener('click', e => {
+  const key = e.target.dataset && e.target.dataset.key;
+  if (key) { highlight(key, e); setFilterFromStatus(key); }
+});
+$('legend').addEventListener('pointerover', e => {
+  const li = e.target.closest('li'); if (li) highlight(li.dataset.key);
+});
+$('legend').addEventListener('pointerleave', () => highlight(null));
+$('legend').addEventListener('click', e => {
+  const li = e.target.closest('li'); if (li) setFilterFromStatus(li.dataset.key);
+});
+document.addEventListener('click', e => {
+  if (!e.target.closest('#chart') && !e.target.closest('#legend')) highlight(null);
+});
+
+function setFilterFromStatus(key) {
+  const map = { ok: 'ok', server_down: 'bad', skipped: 'bad', error: 'error', pending: 'all' };
+  state.filter = map[key] || 'all';
+  state.shown = PAGE;
+  renderFiles();
+}
+
+// ---------- серверы ----------
+
+function renderServers(scan) {
+  const list = scan.failedServers;
+  if (!list.length) {
+    $('servers').innerHTML = `<div class="row"><span class="icon s-ok">✓</span><span class="muted">${scan.running ? 'Пока все серверы отвечают' : 'Все серверы отвечают'}</span></div>`;
+    return;
+  }
+  $('servers').innerHTML = list.map(s => `
+    <div class="server">
+      <div class="row"><span class="icon s-server_down">✕</span><code class="grow">${esc(s.host)}</code></div>
+      <div class="small" style="margin-top:6px">Причина: ${esc(s.reason)}</div>
+      <div class="small muted">Файлов на этом сервере: ${fmtNum(s.files.length)} (первый: ${esc(s.firstFile)})</div>
+    </div>`).join('');
+}
+
+// ---------- список файлов ----------
+
+function matches(f) {
+  switch (state.filter) {
+    case 'ok': return f.status === 'ok';
+    case 'bad': return f.status === 'server_down' || f.status === 'skipped';
+    case 'error': return f.status === 'error';
+    default: return true;
+  }
+}
+
+function renderFiles() {
+  const scan = state.scan;
+  if (!scan) return;
+  const counts = {
+    all: scan.total,
+    ok: scan.counts.ok,
+    bad: scan.counts.server_down + scan.counts.skipped,
+    error: scan.counts.error,
+  };
+  $('chips').innerHTML = FILTERS.map(f =>
+    `<button class="chip ${state.filter === f.key ? 'on' : ''}" data-filter="${f.key}">${f.label} · ${fmtNum(counts[f.key])}</button>`
+  ).join('');
+
+  const list = scan.files.filter(matches);
+  const visible = list.slice(0, state.shown);
+  $('files').innerHTML = visible.length ? visible.map(f => {
+    const st = f.status === 'checking' ? BY_KEY.pending : BY_KEY[f.status];
+    const dl = f.status === 'ok'
+      ? `<a class="btn dl" href="/api/download?path=${encodeURIComponent(f.path)}">Скачать</a>` : '';
+    const reason = f.reason ? `<div class="reason">${esc(f.reason)}</div>` : '';
+    const host = f.host ? ` · ${esc(f.host)}` : '';
+    return `<div class="file s-${st.key}">
+      <span class="icon" title="${st.short}">${st.icon}</span>
+      <div class="grow">
+        <div class="name">${esc(f.name)}</div>
+        <div class="meta">${esc(st.short)} · ${fmtSize(f.size)}${host}</div>
+        <div class="meta">${esc(f.path.replace(/^disk:/, ''))}</div>
+        ${reason}
+      </div>${dl}
+    </div>`;
+  }).join('') : '<div class="muted">Нет файлов</div>';
+  $('moreBtn').classList.toggle('hidden', list.length <= state.shown);
+  $('moreBtn').textContent = `Показать ещё (${fmtNum(list.length - visible.length)})`;
+}
+
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('[data-filter]');
+  if (!b) return;
+  state.filter = b.dataset.filter;
+  state.shown = PAGE;
+  renderFiles();
+});
+$('moreBtn').addEventListener('click', () => { state.shown += PAGE; renderFiles(); });
+
+// ---------- старт ----------
+
+const params = new URLSearchParams(location.search);
+if (params.get('error')) {
+  showFlash(params.get('error'));
+  history.replaceState(null, '', location.pathname);
+}
+loadMe().catch(err => showFlash('Сервер приложения недоступен: ' + err.message));
+</script>
+</body>
+</html>
