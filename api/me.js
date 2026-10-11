@@ -1,9 +1,9 @@
 'use strict';
-const { CLIENT_ID, getToken, clearToken, sendJson, yandexApi, ApiError, handler } = require('../lib/common');
+const { CLIENT_ID, redirectUri, getToken, clearToken, sendJson, yandexApi, ApiError, handler } = require('../lib/common');
 
 // Кто вошёл и сколько места на Диске.
 module.exports = handler(async (req, res) => {
-  const base = { oauthConfigured: Boolean(CLIENT_ID()), clientId: CLIENT_ID() || null };
+  const base = { oauthConfigured: Boolean(CLIENT_ID()), clientId: CLIENT_ID() || null, redirectUri: redirectUri(req) };
   const token = getToken(req);
   if (!token) return sendJson(res, 200, { ...base, authorized: false });
   try {

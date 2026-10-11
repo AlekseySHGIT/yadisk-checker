@@ -144,6 +144,7 @@
     <h2>Вход</h2>
     <p class="muted small">Приложению нужен доступ на чтение Диска (право <code>cloud_api:disk.read</code>).</p>
     <a id="oauthBtn" class="btn wide" href="/api/login">Войти через Яндекс</a>
+    <p id="oauthInfo" class="muted small hidden" style="overflow-wrap:anywhere"></p>
     <p id="oauthMissing" class="muted small hidden">Вход через Яндекс не настроен: укажите <code>YANDEX_CLIENT_ID</code> и <code>YANDEX_CLIENT_SECRET</code> в файле <code>.env</code>. Пока можно вставить токен вручную.</p>
     <details id="manual">
       <summary>Вставить OAuth-токен вручную</summary>
@@ -273,6 +274,10 @@ async function loadMe() {
   if (!me.authorized) {
     $('oauthBtn').classList.toggle('hidden', !me.oauthConfigured);
     $('oauthMissing').classList.toggle('hidden', me.oauthConfigured);
+    // Подсказка для настройки приложения на oauth.yandex.ru: эти значения должны совпадать.
+    $('oauthInfo').classList.toggle('hidden', !me.oauthConfigured);
+    $('oauthInfo').innerHTML = me.oauthConfigured
+      ? `Client ID: <code>${esc(me.clientId)}</code><br>Redirect URI: <code>${esc(me.redirectUri)}</code>` : '';
     if (!me.oauthConfigured) $('manual').open = true;
     $('tokenHint').innerHTML = me.clientId
       ? `Получить токен: <a href="https://oauth.yandex.ru/authorize?response_type=token&client_id=${encodeURIComponent(me.clientId)}" target="_blank" rel="noopener">oauth.yandex.ru</a>, затем скопируйте его сюда.`
