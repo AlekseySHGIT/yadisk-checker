@@ -296,7 +296,9 @@ async function loadMe() {
     return;
   }
   $('userName').innerHTML = `<b>${esc(me.user ? (me.user.name || me.user.login) : 'Яндекс Диск')}</b>`;
-  $('space').textContent = me.totalSpace ? `Занято ${fmtSize(me.usedSpace)} из ${fmtSize(me.totalSpace)}` : '';
+  $('space').textContent = me.totalSpace
+    ? `Занято ${fmtSize(me.usedSpace)} из ${fmtSize(me.totalSpace)}` + (me.trashSize ? `, из них в Корзине ${fmtSize(me.trashSize)}` : '')
+    : '';
   if (me.error) showFlash(me.error);
 }
 

@@ -14,6 +14,7 @@ module.exports = handler(async (req, res) => {
       user: disk.user ? { login: disk.user.login, name: disk.user.display_name } : null,
       totalSpace: disk.total_space,
       usedSpace: disk.used_space,
+      trashSize: disk.trash_size,
     });
   } catch (e) {
     if (e instanceof ApiError && e.status === 401) {
